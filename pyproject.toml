@@ -1,0 +1,31 @@
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+
+[tool.poetry]
+name = "snowflow"
+version = "0.0.5"
+description = "Data flow connectors to and from Snowflake."
+authors = ["Shawn O'Hare <shawn@eshawnohare.com>"]
+license = "CCO"
+# data files
+include = ["*.j2*"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+boto3 = "^1.17.24"
+snowflake-connector-python = "^2.4.1"
+jinjasql = "^0.1.8"
+pyyaml = "5.4.1"
+arrow = "^1.0"
+
+[tool.poetry.dev-dependencies]
+ipython = "*"
+isort = "*"
+black = "*"
+pytest = "*"
+
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
