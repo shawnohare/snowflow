@@ -28,10 +28,11 @@ def merge_metadata(node: dict, meta: dict) -> dict:
         meta: Metadata for an RDS export.
     """
     for schema_name, schema in node["schemas"].items():
-        # For each schema defined in the config, get  all table metadata.
+        # For each schema config defined in the config, get  all table metadata.
         # Look to see if the table should be included in an import, and
         # if so, apply configuration overrides to table metadata.
         tables = schema["tables"]
+        print(tables)
         for table_meta in meta["schemas"][schema_name]["tables"]:
             table_filt = schema["filter"]
             table_name = table_meta["name"]
@@ -41,6 +42,9 @@ def merge_metadata(node: dict, meta: dict) -> dict:
             # Take the table metadata and apply any configuration overrides.
             columns_meta = table_meta.pop("columns", [])
             table = table_meta | tables.get(table_name, {})
+
+            table.setdefault("filter", default_filter())
+            table.setdefault('command', schema['command'])
             tables[table_name] = table
             table.setdefault("snowflake", {})
             table["snowflake"].setdefault("table", table_name)
@@ -57,12 +61,11 @@ def merge_metadata(node: dict, meta: dict) -> dict:
                 column = column_meta | columns.get(column_name, {})
                 columns[column_name] = column
                 if "snowflake_type" not in column:
-                    src_type = column["original_type"]
                     column['name'] = KeywordMap.map(column['name'])
                     column["snowflake_type"] = TypeMap.map(
-                        name=src_type,
-                        src=node["type"],
                         meta=column,
+                        src=node["type"],
+                        tar='snowflake',
                     )
     return node
 
@@ -141,8 +144,10 @@ class Config(dict):
         for instance_name, instance in conf["sources"].items():
             instance["s3"] = conf["s3"] | instance["s3"]
             instance["schemas"] = list_to_dict(instance.get("schemas", []))
+            instance.setdefault('command', 'writenx')
             for schema in instance["schemas"].values():
                 # Apply defaults / type transform for each schema config.
+                schema.setdefault('command', instance['command'])
                 schema["instance"] = instance_name
                 schema["tables"] = list_to_dict(schema.get("tables", []))
                 schema.setdefault("tables", [])
@@ -152,6 +157,7 @@ class Config(dict):
                 # Apply defaults / type transforms for each table config
                 for table in schema["tables"].values():
                     table.setdefault("filter", default_filter())
+                    table.setdefault('command', schema['command'])
                     table["filter"]["items"] = set(table["filter"]["items"])
                     table["columns"] = list_to_dict(table.get("columns", []))
 

@@ -219,9 +219,9 @@ class SchemaImportTask:
         tar = f'{self.snowflake["database"]}.{self.snowflake["schema"]}'
         logger.info(f"Writing {src} to {tar}.")
 
-        if self.conf.get("command", "write") == "skip":
+        if (cmd := self.conf["command"]) == "skip":
             logger.info("Skipping schema write.")
-            self.log["command"] = "skip"
+            self.log["command"] = cmd
             self.log["success"] = True
             return self.log
 
@@ -237,7 +237,7 @@ class SchemaImportTask:
         for table_name, table_conf in self.conf["tables"].items():
             start = arrow.utcnow()
             src = f"{self.schema}.{table_name}"
-            cmd = table_conf.get("command", "writenx")
+            cmd = table_conf["command"]
             entry = self.log["tables"].setdefault(
                 table_name,
                 {

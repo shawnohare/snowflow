@@ -151,30 +151,41 @@ class TypeMap:
     }
 
     @classmethod
-    def mysql_to_snowflake(cls, name: str, meta: Optional[dict]) -> str:
+    def handle_decimal(cls, meta: dict):
+        """Try to infer appropriate precision scale to use for numeric
+        datatypes. For example, a MySQL decimal exported as
+        "int64 (DECIMAL(14, 4))" should be mapped to a Snowflake
+        "decimal(18, 4)", where "decimal" is just an alias for "number".
+        """
+        # extract DECIMAL(12,4) from export_type = 'int64 (DECIMAL(12,4))'
+        etype = meta['exported_type'].rpartition(' ')[2][1:-1].lower()
+        return etype
+
+    @classmethod
+    def mysql_to_snowflake(cls, meta: dict) -> str:
         """Map a MySQL type to a Snowflake type."""
-        name = name.replace("unsigned", "").strip()
-        mapping = cls.to_snowflake["mysql"]
-        tar_type = mapping.get(name)
-        if tar_type is None:
-            tar_type = cls.to_snowflake["defaults"].get(name, name)
+        otype = meta['original_type'].replace('unsigned', '').strip()
+        if otype == 'decimal':
+            tar_type = cls.handle_decimal(meta)
+        else:
+            mapping = cls.to_snowflake["mysql"]
+            tar_type = mapping.get(otype)
+            if tar_type is None:
+                tar_type = cls.to_snowflake["defaults"].get(otype, otype)
         return tar_type
 
     @classmethod
-    def map(
-        cls, name: str, src: str, tar: str = "snowflake", meta: Optional[dict] = None
-    ) -> str:
+    def map(cls, meta: dict, src: str, tar: str = "snowflake") -> str:
         """Map the input type from the given source (src) to the target (tar)
         output, e.g., map a MySQL type to a Snowflake type.
 
         Args:
-            val: A type name, e.g., "mediumint".
+            meta: Type metadata such as original type, exported type, precision, encoding, etc.
             src: Source system of the type, e.g., "mysql".
             tar: Target system into which the type is to be mapped, e.g., "snowflake".
-            meta: Type metadata such as precision, encoding, etc.
 
         Inputs not explicitly mapped have the identity function applied, i.e.,
         are passed through.
         """
         meth = getattr(cls, f"{src}_to_{tar}")
-        return meth(name.strip().lower(), meta)
+        return meth(meta)
